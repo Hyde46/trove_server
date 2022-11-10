@@ -1,0 +1,9 @@
+---
+version: 1.1.1
+commands:
+  - name: git_status
+    namespace: git
+    tags:
+      - git
+    command: git status
+    description: "List the files you've changed and those you still need to add or commit"
