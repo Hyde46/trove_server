@@ -1,35 +1,27 @@
 use crate::errors::ServiceError;
-use alcoholic_jwt::{token_kid, validate, Validation, JWKS};
-use serde::{Deserialize, Serialize};
-use std::error::Error;
+use crate::handlers::{db_get_user_by_api_token, db_is_token_revoked};
+use crate::Pool;
+use actix_web::web;
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    sub: String,
-    company: String,
-    exp: usize,
-}
-
-pub fn validate_token(token: &str) -> Result<bool, ServiceError> {
-    let authority = std::env::var("AUTHORITY").expect("AUTHORITY must be set");
-    let jwks = fetch_jwks(&format!(
-        "{}{}",
-        authority.as_str(),
-        ".well-known/jwks.json"
-    ))
-    .expect("failed to fetch jwks");
-    let validations = vec![Validation::Issuer(authority), Validation::SubjectPresent];
-    let kid = match token_kid(&token) {
-        Ok(res) => res.expect("failed to decode kid"),
-        Err(_) => return Err(ServiceError::JWKSFetchError),
-    };
-    let jwk = jwks.find(&kid).expect("Specified key not found in set");
-    let res = validate(token, jwk, validations);
-    Ok(res.is_ok())
-}
-
-fn fetch_jwks(uri: &str) -> Result<JWKS, Box<dyn Error>> {
-    let mut res = reqwest::get(uri)?;
-    let val = res.json::<JWKS>()?;
-    return Ok(val);
+pub fn validate_token(token: BearerAuth, pool: web::Data<Pool>) -> Result<bool, ServiceError> {
+    match db_is_token_revoked(pool.clone(), token.clone()) {
+        Ok(is_revoked) => {
+            if is_revoked {
+                return Err(ServiceError::AuthenticationError(String::from(
+                    "Token has revoked access",
+                )));
+            }
+        }
+        Err(_) => return Err(ServiceError::AuthenticationError(String::from("No token"))),
+    }
+    match db_get_user_by_api_token(pool, token) {
+        Ok(_) => {}
+        Err(_) => {
+            return Err(ServiceError::AuthenticationError(String::from(
+                "No user for token",
+            )))
+        }
+    }
+    Ok(true)
 }

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 actix-web = "2.0.0"
 actix-web-httpauth = { git = "https://github.com/actix/actix-web-httpauth" }
+actix-multipart = "0.2.0"
 chrono = { version = "0.4.10", features = ["serde"] }
 derive_more = "0.99.2"
 diesel = { version = "1.4.2", features = ["postgres","uuidv07", "r2d2", "chrono"] }
@@ -22,3 +23,5 @@ alcoholic_jwt = "1.0.0"
 reqwest = "0.9.22"
 actix-rt = "1.0.0"
 argonautica = "0.2.0"
+rand = "0.8.5"
+base64 = "0.13.1"

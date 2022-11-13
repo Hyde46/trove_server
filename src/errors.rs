@@ -1,6 +1,7 @@
 use actix_web::{error::ResponseError, HttpResponse};
 use derive_more::Display;
 
+#[allow(dead_code)]
 #[derive(Debug, Display)]
 pub enum ServiceError {
     #[display(fmt = "Internal Server Error")]

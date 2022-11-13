@@ -22,3 +22,19 @@ pub struct NewUser<'a> {
     pub verified: bool,
     pub created_at: chrono::NaiveDateTime,
 }
+
+#[derive(Debug, Serialize, Deserialize, Queryable)]
+pub struct APIToken {
+    pub id: i32,
+    pub token: String,
+    pub user_id: i32,
+    pub revoked: bool,
+    pub created_at: chrono::NaiveDateTime,
+}
+#[derive(Insertable, Debug)]
+#[table_name = "api_token"]
+pub struct NewToken<'a> {
+    pub token: &'a str,
+    pub user_id_fk: i32,
+    pub created_at: chrono::NaiveDateTime,
+}

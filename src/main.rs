@@ -1,16 +1,18 @@
 #[macro_use]
 extern crate diesel;
+extern crate base64;
+extern crate rand;
 
-use actix_web::{dev::ServiceRequest, middleware, web, App, Error, HttpServer};
-use actix_web_httpauth::extractors::bearer::{BearerAuth, Config};
-use actix_web_httpauth::extractors::AuthenticationError;
+use actix_web::middleware::Logger;
+use actix_web::{dev::ServiceRequest, web, App, Error, HttpServer};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 use actix_web_httpauth::middleware::HttpAuthentication;
-use argonautica::{Hasher, Verifier};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 
 mod auth;
 mod errors;
+mod file;
 mod handlers;
 mod models;
 mod schema;
@@ -19,20 +21,25 @@ mod vars;
 
 pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
-async fn validator(req: ServiceRequest, credentials: BearerAuth) -> Result<ServiceRequest, Error> {
-    let config = req
-        .app_data::<Config>()
-        .map(|data| data.get_ref().clone())
-        .unwrap_or_else(Default::default);
-    match auth::validate_token(credentials.token()) {
+async fn validator(
+    req: ServiceRequest,
+    credentials: BearerAuth,
+    db: web::Data<Pool>,
+) -> Result<ServiceRequest, Error> {
+    match auth::validate_token(credentials, db) {
         Ok(res) => {
             if res {
                 Ok(req)
             } else {
-                Err(AuthenticationError::from(config).into())
+                Err(errors::ServiceError::AuthenticationError(String::from(
+                    "Invalid token. Not found",
+                ))
+                .into())
             }
         }
-        Err(_) => Err(AuthenticationError::from(config).into()),
+        Err(_) => {
+            Err(errors::ServiceError::AuthenticationError(String::from("Invalid token")).into())
+        }
     }
 }
 
@@ -48,14 +55,28 @@ async fn main() -> std::io::Result<()> {
 
     // Start http server
     HttpServer::new(move || {
-        //let auth = HttpAuthentication::bearer(validator);
+        let auth = HttpAuthentication::bearer(|req, cred| {
+            let db = web::Data::new(
+                req.app_data::<Pool>()
+                    .expect("Failed to extract DatabaseConnection from ServiceRequest")
+                    .get_ref()
+                    .clone(),
+            );
+            validator(req, cred, db)
+        });
         App::new()
-            //.wrap(auth)
+            .wrap(Logger::default())
             .data(pool.clone())
             .route("/register", web::post().to(handlers::register_user))
-        //.route("/users", web::get().to(handlers::get_users))
-        //.route("/users/{id}", web::get().to(handlers::get_user_by_id))
-        //.route("/users/{id}", web::delete().to(handlers::delete_user))
+            .route("/token/new", web::get().to(handlers::create_api_token))
+            .service(
+                web::scope("/v1")
+                    .wrap(auth)
+                    .route("/trove", web::get().to(handlers::get_trove_by_profile))
+                    .route("/trove", web::put().to(handlers::save_trove_by_token))
+                    .route("/user", web::delete().to(handlers::delete_user_by_token))
+                    .route("/token/revoke", web::get().to(handlers::revoke_api_token)),
+            )
     })
     .bind("127.0.0.1:8080")?
     .run()

@@ -4,8 +4,9 @@ diesel::table! {
     api_token (id) {
         id -> Int4,
         token -> Text,
-        user_id -> Int4,
+        user_id_fk -> Int4,
         revoked -> Bool,
+        created_at -> Timestamp,
     }
 }
 
@@ -21,6 +22,6 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(api_token -> users (user_id));
+diesel::joinable!(api_token -> users (user_id_fk));
 
 diesel::allow_tables_to_appear_in_same_query!(api_token, users,);
