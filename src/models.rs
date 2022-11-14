@@ -38,3 +38,18 @@ pub struct NewToken<'a> {
     pub user_id_fk: i32,
     pub created_at: chrono::NaiveDateTime,
 }
+
+#[derive(Debug, Serialize, Deserialize, Queryable, Default)]
+pub struct Trove {
+    pub id: i32,
+    pub trove_text: String,
+    pub user_id: i32,
+    pub created_at: chrono::NaiveDateTime,
+}
+#[derive(Insertable, Debug)]
+#[table_name = "trove"]
+pub struct NewTrove<'a> {
+    pub trove_text: &'a str,
+    pub user_id_fk: i32,
+    pub created_at: chrono::NaiveDateTime,
+}

@@ -3,11 +3,11 @@ use diesel::prelude::*;
 
 use super::file::save_file;
 use super::models::{NewUser, User};
-use super::utils::{generate_api_token, verify};
+use super::utils::{generate_api_token, verify, encode_text, decode_text};
 use super::Pool;
 use crate::diesel::QueryDsl;
 use crate::diesel::RunQueryDsl;
-use crate::models::{APIToken, NewToken};
+use crate::models::{APIToken, NewToken, Trove, NewTrove};
 use crate::{errors::ServiceError, utils, vars};
 use actix_multipart::Multipart;
 use actix_web::{web, Error, HttpResponse};
@@ -16,6 +16,7 @@ use diesel::dsl::{delete, insert_into};
 use diesel::{ExpressionMethods, OptionalExtension};
 use schema::api_token::dsl::*;
 use schema::users::dsl::*;
+use schema::trove::dsl::*;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::prelude::*;
@@ -87,20 +88,13 @@ pub async fn get_trove_by_profile(
     auth: BearerAuth,
 ) -> Result<HttpResponse, Error> {
     // Can unwrap here, since auth middle wear already checks if a user for exists for a given token
-    let user = db_get_user_by_api_token(db, auth).unwrap();
-    let trove_path = format!("./troves/{}.yaml", user.id);
-    let file = File::open(trove_path);
-    match file {
-        Ok(mut f) => {
-            let mut contents = String::new();
-            f.read_to_string(&mut contents)?;
-            Ok(HttpResponse::Ok().content_type("text/yaml").body(contents))
-        }
-        Err(_) => Err(HttpResponse::BadRequest()
-            .content_type("text/plain")
-            .body("No trove saved for this API token")
-            .into()),
-    }
+    let user = db_get_user_by_api_token(db.clone(), auth).unwrap();
+    Ok(
+        web::block(move || db_get_latest_trove_by_user_id(db, user.id))
+            .await
+            .map(|t| HttpResponse::Ok().json(decode_text(t.unwrap_or_default().trove_text)))
+            .map_err(|_| HttpResponse::InternalServerError())?,
+    )
 }
 
 // Handler for PUT /trove
@@ -111,15 +105,16 @@ pub async fn save_trove_by_token(
     auth: BearerAuth,
     payload: Multipart,
 ) -> Result<HttpResponse, Error> {
-    let user = web::block(move || db_get_user_by_api_token(db, auth))
-        .await
-        .map_err(|_| HttpResponse::InternalServerError())?;
-    let trove_path = format!("./troves/{}.yaml", user.id);
-    let upload_status = save_file(payload, trove_path).await;
+    let user = db_get_user_by_api_token(db.clone(), auth).unwrap();
+    let tmp_trove_path = format!("./{}.yaml", user.id);
+    let upload_status = save_file(payload, tmp_trove_path.clone()).await;
     match upload_status {
-        Some(true) => Ok(HttpResponse::Ok()
-            .content_type("text/plain")
-            .body("Saved trove!")),
+        Some(true) => Ok(
+            web::block(move || db_add_trove_text(db, user.id, &tmp_trove_path))
+            .await
+            .map(|_| HttpResponse::Created().json("Saved trove!"))
+            .map_err(|_| HttpResponse::InternalServerError())?
+        ),
         _ => Err(HttpResponse::BadRequest()
             .content_type("text/plain")
             .body("Could not save uploaded trove file")
@@ -175,7 +170,6 @@ pub async fn register_user(
         .await
         .map(|c| c == 0)
         .map_err(|_| HttpResponse::InternalServerError())?;
-    println!("register_user: hey:)");
     if is_unique {
         Ok(web::block(move || add_single_user(db, item))
             .await
@@ -189,6 +183,11 @@ pub async fn register_user(
 fn db_get_user_by_id(pool: web::Data<Pool>, user_id: i32) -> Result<User, diesel::result::Error> {
     let conn = pool.get().unwrap();
     users.find(user_id).get_result::<User>(&conn)
+}
+
+fn db_get_latest_trove_by_user_id(pool: web::Data<Pool>, user_id: i32) -> Result<Option<Trove>, diesel::result::Error> {
+    let conn = pool.get().unwrap();
+    trove.filter(schema::trove::user_id_fk.eq(user_id)).order_by(schema::trove::id.desc()).first(&conn).optional()
 }
 
 fn db_get_user_by_email(
@@ -302,6 +301,20 @@ fn add_single_user(
     };
 
     let res = insert_into(users).values(&new_user).get_result(&conn)?;
+    Ok(res)
+}
+
+fn db_add_trove_text(db: web::Data<Pool>, user_id: i32, trove_path: &str) -> Result<Trove, diesel::result::Error> {
+    let conn = db.get().unwrap();
+    let mut file = File::open(trove_path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+    let new_trove = NewTrove {
+        trove_text: &encode_text(contents)[..],
+        user_id_fk: user_id,
+        created_at: chrono::Local::now().naive_local(),
+    };
+    let res = insert_into(trove).values(&new_trove).get_result(&conn)?;
     Ok(res)
 }
 

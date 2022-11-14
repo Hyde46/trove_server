@@ -1,6 +1,6 @@
 use crate::{errors::ServiceError, vars};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use base64::decode;
+use base64::{decode, encode};
 use pbkdf2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Pbkdf2,
@@ -45,6 +45,18 @@ pub fn generate_api_token() -> String {
 pub fn decode_token(credentials: BearerAuth) -> String {
     let decoded_token_buffer: Vec<u8> = decode(credentials.token()).unwrap();
     let s = match std::str::from_utf8(&decoded_token_buffer) {
+        Ok(v) => v,
+        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    };
+    s.to_string()
+}
+
+pub fn encode_text(txt: String) -> String {
+    encode(&txt)
+}
+pub fn decode_text(txt: String) -> String {
+    let decoded_buffer: Vec<u8> = decode(txt).unwrap();
+    let s = match std::str::from_utf8(&decoded_buffer) {
         Ok(v) => v,
         Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
     };

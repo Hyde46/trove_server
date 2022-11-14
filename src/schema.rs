@@ -11,6 +11,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    trove (id) {
+        id -> Int4,
+        trove_text -> Text,
+        user_id_fk -> Int4,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Int4,
         first_name -> Text,
@@ -22,6 +31,8 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(api_token -> users (user_id_fk));
-
-diesel::allow_tables_to_appear_in_same_query!(api_token, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    api_token,
+    trove,
+    users,
+);
