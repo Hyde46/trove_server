@@ -19,10 +19,10 @@ pub fn verify_email() -> bool {
 
 pub fn port() -> String {
     dotenv().ok();
-    var("ACTIX_PORT").unwrap_or_else(|_| "8080".repeat(8))
+    var("PORT").unwrap_or_else(|_| "8080".to_string())
 }
 
 pub fn uri() -> String {
     dotenv().ok();
-    var("ACTIX_URI").unwrap_or_else(|_| "127.0.0.1".repeat(8))
+    var("ACTIX_URI").unwrap_or_else(|_| "0.0.0.0".to_string())
 }
