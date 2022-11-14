@@ -54,7 +54,8 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to create pool.");
 
     let port = vars::port();
-    let uri = format!("127.0.0.1:{}", port);
+    let uri = vars::uri();
+    let uri = format!("{}:{}", uri, port);
     // Start http server
     HttpServer::new(move || {
         let auth = HttpAuthentication::bearer(|req, cred| {

@@ -21,3 +21,8 @@ pub fn port() -> String {
     dotenv().ok();
     var("ACTIX_PORT").unwrap_or_else(|_| "8080".repeat(8))
 }
+
+pub fn uri() -> String {
+    dotenv().ok();
+    var("ACTIX_URI").unwrap_or_else(|_| "127.0.0.1".repeat(8))
+}
