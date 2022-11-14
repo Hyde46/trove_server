@@ -53,6 +53,8 @@ async fn main() -> std::io::Result<()> {
         .build(manager)
         .expect("Failed to create pool.");
 
+    let port = vars::port();
+    let uri = format!("127.0.0.1:{}", port);
     // Start http server
     HttpServer::new(move || {
         let auth = HttpAuthentication::bearer(|req, cred| {
@@ -67,6 +69,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .data(pool.clone())
+            .route("/info", web::get().to(handlers::info))
             .route("/register", web::post().to(handlers::register_user))
             .route("/token/new", web::get().to(handlers::create_api_token))
             .service(
@@ -78,7 +81,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/token/revoke", web::get().to(handlers::revoke_api_token)),
             )
     })
-    .bind("127.0.0.1:8080")?
+    .bind(uri)?
     .run()
     .await
 }

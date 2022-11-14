@@ -16,3 +16,8 @@ pub fn verify_email() -> bool {
     let env_var = var("VERIFY_USER").unwrap_or_else(|_| "true".to_string());
     env_var.parse::<bool>().unwrap()
 }
+
+pub fn port() -> String {
+    dotenv().ok();
+    var("ACTIX_PORT").unwrap_or_else(|_| "8080".repeat(8))
+}

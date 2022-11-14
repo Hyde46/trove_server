@@ -42,6 +42,13 @@ pub struct InputApiToken {
     pub user_id: i32,
 }
 
+// Handler for GET /info
+pub async fn info() -> Result<HttpResponse, Error> {
+    Ok(
+        HttpResponse::Ok().json("Hello troveserver!")
+    )
+}
+
 // Handler for put /trove
 //pub async fn save_trove(db: web::Data<Pool>, item: web::Json<InputAuthUser>) -> Result<HttpResponse, Error> {
 //
