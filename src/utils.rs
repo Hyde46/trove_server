@@ -1,7 +1,10 @@
 use crate::{errors::ServiceError, vars};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use argonautica::{Hasher, Verifier};
 use base64::decode;
+use pbkdf2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Pbkdf2,
+};
 use rand::Rng;
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
@@ -10,20 +13,23 @@ const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 const API_TOKEN_LEN: usize = 30;
 
 pub fn hash_password(password: &str) -> Result<String, ServiceError> {
-    Hasher::default()
-        .with_password(password)
-        .with_secret_key(vars::secret_key().as_str())
-        .hash()
-        .map_err(|_| ServiceError::AuthenticationError(String::from("Could not hash password")))
+    let salt = SaltString::generate(&mut OsRng);
+    // Hash password to PHC string ($pbkdf2-sha256$...)
+    let password_hash = Pbkdf2
+        .hash_password(password.as_bytes(), &salt)
+        .unwrap()
+        .to_string();
+
+    // Verify password against PHC string
+    let parsed_hash = PasswordHash::new(&password_hash).unwrap();
+    Ok(parsed_hash.to_string())
 }
 
 pub fn verify(hash: &str, password: &str) -> Result<bool, ServiceError> {
-    Verifier::default()
-        .with_hash(hash)
-        .with_password(password)
-        .with_secret_key(vars::secret_key().as_str())
-        .verify()
-        .map_err(|_| ServiceError::AuthenticationError(String::from("Unauthorized")))
+    let parsed_hash = PasswordHash::new(hash).unwrap();
+    return Ok(Pbkdf2
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .is_ok());
 }
 
 pub fn generate_api_token() -> String {

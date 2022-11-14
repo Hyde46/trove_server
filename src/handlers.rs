@@ -44,9 +44,7 @@ pub struct InputApiToken {
 
 // Handler for GET /info
 pub async fn info() -> Result<HttpResponse, Error> {
-    Ok(
-        HttpResponse::Ok().json("Hello troveserver!")
-    )
+    Ok(HttpResponse::Ok().json("Hello troveserver!"))
 }
 
 // Handler for put /trove
@@ -177,6 +175,7 @@ pub async fn register_user(
         .await
         .map(|c| c == 0)
         .map_err(|_| HttpResponse::InternalServerError())?;
+    println!("register_user: hey:)");
     if is_unique {
         Ok(web::block(move || add_single_user(db, item))
             .await
