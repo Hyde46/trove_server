@@ -297,7 +297,10 @@ fn add_single_user(
         email: &item.email,
         pw_hash: &hashed_password,
         verified: vars::verify_email(),
+        subscribed: false,
         created_at: chrono::Local::now().naive_local(),
+        last_payment: chrono::Local::now().naive_local(),
+        admin: false,
     };
 
     let res = insert_into(users).values(&new_user).get_result(&conn)?;

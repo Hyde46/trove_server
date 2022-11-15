@@ -1,3 +1,4 @@
 /target
 /troves
 .env
+.DS_Store

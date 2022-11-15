@@ -1,4 +1,3 @@
--- Your SQL goes here
 CREATE TABLE api_token (
   id SERIAL NOT NULL PRIMARY KEY,
   token TEXT NOT NULL,

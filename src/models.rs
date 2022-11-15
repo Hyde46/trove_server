@@ -10,6 +10,9 @@ pub struct User {
     pub pw_hash: String,
     pub verified: bool,
     pub created_at: chrono::NaiveDateTime,
+    pub subscribed: bool,
+    pub last_payment: chrono::NaiveDateTime,
+    pub admin: bool,
 }
 
 #[derive(Insertable, Debug)]
@@ -21,6 +24,9 @@ pub struct NewUser<'a> {
     pub pw_hash: &'a str,
     pub verified: bool,
     pub created_at: chrono::NaiveDateTime,
+    pub subscribed: bool,
+    pub last_payment: chrono::NaiveDateTime,
+    pub admin: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Queryable)]

@@ -28,6 +28,9 @@ diesel::table! {
         pw_hash -> Text,
         verified -> Bool,
         created_at -> Timestamp,
+        subscribed -> Bool,
+        last_payment -> Timestamp,
+        admin -> Bool,
     }
 }
 
