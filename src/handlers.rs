@@ -25,8 +25,6 @@ use utils::decode_token;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InputUser {
-    pub first_name: String,
-    pub last_name: String,
     pub password: String,
     pub email: String,
 }
@@ -292,8 +290,6 @@ fn add_single_user(
     let conn = db.get().unwrap();
     let hashed_password = utils::hash_password(&item.password).unwrap();
     let new_user = NewUser {
-        first_name: &item.first_name,
-        last_name: &item.last_name,
         email: &item.email,
         pw_hash: &hashed_password,
         verified: vars::verify_email(),
