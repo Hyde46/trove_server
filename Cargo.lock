@@ -2743,6 +2743,7 @@ dependencies = [
  "actix-web-httpauth",
  "alcoholic_jwt",
  "base64 0.13.1",
+ "bytes 1.2.1",
  "chrono",
  "derive_more",
  "diesel",

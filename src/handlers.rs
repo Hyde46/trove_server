@@ -1,5 +1,7 @@
 use super::schema;
 use diesel::prelude::*;
+use bytes::Bytes;
+use std::str;
 
 use super::file::save_file;
 use super::models::{NewUser, User};
@@ -101,23 +103,13 @@ pub async fn get_trove_by_profile(
 pub async fn save_trove_by_token(
     db: web::Data<Pool>,
     auth: BearerAuth,
-    payload: Multipart,
+    trove_data: web::Bytes,
 ) -> Result<HttpResponse, Error> {
     let user = db_get_user_by_api_token(db.clone(), auth).unwrap();
-    let tmp_trove_path = format!("./{}.yaml", user.id);
-    let upload_status = save_file(payload, tmp_trove_path.clone()).await;
-    match upload_status {
-        Some(true) => Ok(
-            web::block(move || db_add_trove_text(db, user.id, &tmp_trove_path))
-            .await
-            .map(|_| HttpResponse::Created().json("Saved trove!"))
-            .map_err(|_| HttpResponse::InternalServerError())?
-        ),
-        _ => Err(HttpResponse::BadRequest()
-            .content_type("text/plain")
-            .body("Could not save uploaded trove file")
-            .into()),
-    }
+    Ok(web::block(move || db_add_trove_text(db, user.id, str::from_utf8(&trove_data).unwrap()))
+        .await
+        .map(|_| HttpResponse::Created().json("Saved trove!"))
+        .map_err(|_| HttpResponse::InternalServerError())?)
 }
 
 #[allow(dead_code)]
@@ -303,13 +295,10 @@ fn add_single_user(
     Ok(res)
 }
 
-fn db_add_trove_text(db: web::Data<Pool>, user_id: i32, trove_path: &str) -> Result<Trove, diesel::result::Error> {
+fn db_add_trove_text(db: web::Data<Pool>, user_id: i32, trove_data: &str) -> Result<Trove, diesel::result::Error> {
     let conn = db.get().unwrap();
-    let mut file = File::open(trove_path).unwrap();
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
     let new_trove = NewTrove {
-        trove_text: &encode_text(contents)[..],
+        trove_text: &encode_text(trove_data.to_string())[..],
         user_id_fk: user_id,
         created_at: chrono::Local::now().naive_local(),
     };

@@ -7,6 +7,7 @@ use futures::{StreamExt, TryStreamExt};
 pub async fn save_file(mut payload: Multipart, file_path: String) -> Option<bool> {
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
+        println!("save_file: Here!");
         //let filename = content_type.get_filename().unwrap();
         let filepath = file_path.clone();
 
@@ -18,6 +19,7 @@ pub async fn save_file(mut payload: Multipart, file_path: String) -> Option<bool
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
+            println!("save_file: {:?}", data);
             // filesystem operations are blocking, we have to use threadpool
             f = web::block(move || f.write_all(&data).map(|_| f))
                 .await
