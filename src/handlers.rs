@@ -64,11 +64,14 @@ pub async fn create_api_token(
         .await
         .map_err(|_| HttpResponse::InternalServerError())?;
 
-    verify(&user.pw_hash, &item.password)?;
-    Ok(web::block(move || db_add_api_token(db, user.id))
-        .await
-        .map(|t| HttpResponse::Created().json(t))
-        .map_err(|_| HttpResponse::InternalServerError())?)
+    if verify(&user.pw_hash, &item.password)? {
+        Ok(web::block(move || db_add_api_token(db, user.id))
+            .await
+            .map(|t| HttpResponse::Created().json(t))
+            .map_err(|_| HttpResponse::InternalServerError())?)
+    } else {
+        Err(ServiceError::AuthenticationError(String::from("Err during authentication")).into())
+    }
 }
 
 //Handler for GET /token/revoke
